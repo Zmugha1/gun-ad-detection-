@@ -1,0 +1,9 @@
+# Full stack for local run with BERT (optional)
+# Use this for: pip install -r requirements-full.txt
+
+-r requirements.txt
+torch>=2.0.0
+transformers>=4.37.0
+jupyter>=1.0.0
+ipykernel>=6.25.0
+nbformat>=5.9.0

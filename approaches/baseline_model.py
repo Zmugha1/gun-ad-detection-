@@ -3,14 +3,15 @@ Approach 1: Baseline binary classification.
 BERT fine-tuned, standard 0.5 threshold. No calibration, no cost sensitivity.
 """
 import numpy as np
-import torch
 from typing import List, Optional, Union
 from pathlib import Path
 
 try:
+    import torch
     from transformers import AutoTokenizer, AutoModelForSequenceClassification
     HAS_TRANSFORMERS = True
 except ImportError:
+    torch = None  # type: ignore
     HAS_TRANSFORMERS = False
 
 # Default config
