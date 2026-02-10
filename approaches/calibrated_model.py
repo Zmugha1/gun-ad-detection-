@@ -37,25 +37,29 @@ class CalibratedWeaponsClassifier:
         Falls back to no calibration (raw scores) if fit fails or only one class.
         """
         self.platt = None
-        scores = self.base.predict_proba(X_raw)
+        try:
+            scores = self.base.predict_proba(X_raw)
+        except Exception:
+            return self
         if scores.ndim > 1:
             scores = scores.ravel()
-        scores = np.asarray(scores, dtype=np.float64)
-        # Remove NaN/Inf so sklearn accepts
-        valid = np.isfinite(scores)
-        if not np.all(valid):
-            scores = np.where(valid, scores, 0.5)
-        scores = np.ascontiguousarray(scores.reshape(-1, 1))
+        scores = np.asarray(scores, dtype=np.float64, copy=True).ravel()
+        # Only keep finite scores in [0,1]; drop invalid rows
+        valid = np.isfinite(scores) & (scores >= 0) & (scores <= 1)
         y_true = np.asarray(y_true).ravel()
-        y_true = (y_true != 0).astype(np.intp)  # ensure binary 0/1
         if len(y_true) != len(scores):
             return self
-        if len(np.unique(y_true)) < 2:
+        scores = scores[valid]
+        y_true = y_true[valid]
+        if len(scores) < 10 or len(np.unique(y_true)) < 2:
             return self
+        # Ensure binary 0/1 and contiguous for sklearn
+        y_true = (y_true != 0).astype(np.int32)
+        X = np.ascontiguousarray(scores.reshape(-1, 1).astype(np.float64))
         try:
             self.platt = LogisticRegression(C=1e10, solver="lbfgs", max_iter=1000)
-            self.platt.fit(scores, y_true)
-        except (ValueError, TypeError):
+            self.platt.fit(X, y_true)
+        except Exception:
             self.platt = None
         return self
 
