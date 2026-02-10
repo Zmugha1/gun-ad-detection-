@@ -42,12 +42,25 @@ class TheoryConstrainedWeaponsClassifier:
         self.isotonic: Optional[IsotonicRegression] = None
 
     def fit_calibration(self, X_raw: List, y_true: np.ndarray):
-        """Fit Isotonic regression: raw score -> calibrated P(weapons)."""
-        scores = self.base.predict_proba(X_raw)
-        if scores.ndim > 1:
-            scores = scores.ravel()
-        self.isotonic = IsotonicRegression(out_of_bounds="clip")
-        self.isotonic.fit(scores, y_true)
+        """Fit Isotonic regression: raw score -> calibrated P(weapons). Fall back to no calibration on any error."""
+        self.isotonic = None
+        try:
+            scores = self.base.predict_proba(X_raw)
+            if hasattr(scores, "ndim") and scores.ndim > 1:
+                scores = scores.ravel()
+            scores = np.asarray(scores, dtype=np.float64).ravel()
+            y_true = np.asarray(y_true).ravel()
+            if len(scores) != len(X_raw) or len(y_true) != len(X_raw):
+                return self
+            valid = np.isfinite(scores) & (scores >= 0) & (scores <= 1)
+            scores = scores[valid]
+            y_true = y_true[valid]
+            if len(scores) < 5:
+                return self
+            self.isotonic = IsotonicRegression(out_of_bounds="clip")
+            self.isotonic.fit(scores, y_true)
+        except Exception:
+            self.isotonic = None
         return self
 
     def predict_proba(self, text: Union[str, List[str]]) -> np.ndarray:

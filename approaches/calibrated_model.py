@@ -33,32 +33,27 @@ class CalibratedWeaponsClassifier:
     def fit_calibration(self, X_raw: List, y_true: np.ndarray):
         """
         Fit Platt scaling: X_raw = list of texts, y_true = binary labels.
-        Uses base model to get scores, then fits sigmoid( A * score + B ).
-        Falls back to no calibration (raw scores) if fit fails or only one class.
+        Falls back to no calibration on any error so the app never crashes.
         """
         self.platt = None
         try:
             scores = self.base.predict_proba(X_raw)
-        except Exception:
-            return self
-        n_inputs = len(X_raw)
-        if hasattr(scores, "ndim") and scores.ndim > 1:
-            scores = scores.ravel()
-        scores = np.asarray(scores, dtype=np.float64, copy=True).ravel()
-        if len(scores) != n_inputs:
-            return self
-        y_true = np.asarray(y_true).ravel()
-        if len(y_true) != n_inputs:
-            return self
-        # Only keep finite scores in [0,1]; drop invalid rows
-        valid = np.isfinite(scores) & (scores >= 0) & (scores <= 1)
-        scores = scores[valid].copy()
-        y_true = y_true[valid].copy()
-        if len(scores) < 10 or len(np.unique(y_true)) < 2:
-            return self
-        y_true = (y_true != 0).astype(np.int32, copy=False)
-        X = np.ascontiguousarray(scores.reshape(-1, 1).astype(np.float64, copy=True))
-        try:
+            n_inputs = len(X_raw)
+            if hasattr(scores, "ndim") and scores.ndim > 1:
+                scores = scores.ravel()
+            scores = np.asarray(scores, dtype=np.float64, copy=True).ravel()
+            if len(scores) != n_inputs:
+                return self
+            y_true = np.asarray(y_true).ravel()
+            if len(y_true) != n_inputs:
+                return self
+            valid = np.isfinite(scores) & (scores >= 0) & (scores <= 1)
+            scores = scores[valid].copy()
+            y_true = y_true[valid].copy()
+            if len(scores) < 10 or len(np.unique(y_true)) < 2:
+                return self
+            y_true = (y_true != 0).astype(np.int32, copy=False)
+            X = np.ascontiguousarray(scores.reshape(-1, 1).astype(np.float64, copy=True))
             self.platt = LogisticRegression(C=1e10, solver="lbfgs", max_iter=1000)
             self.platt.fit(X, y_true)
         except Exception:
