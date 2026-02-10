@@ -69,7 +69,8 @@ class BaselineWeaponsClassifier:
         self._ensure_model()
         if self._fallback is not None:
             return self._fallback.predict_proba(text)
-        single = isinstance(text, str) or (isinstance(text, list) and len(text) > 0 and isinstance(text[0], str))
+        # Single input: one string or list with one element
+        single = isinstance(text, str) or (isinstance(text, list) and len(text) == 1)
         if single:
             text = [self._text_to_input(text)]
         else:
@@ -102,10 +103,14 @@ class _KeywordFallback:
     WEAPONS_WORDS = {"tactical", "sale", "serial", "cash", "firearm", "rifle", "ammo", "private", "no background", "magazine", "receiver", "concealed", "carry", "reloading"}
 
     def predict_proba(self, text: Union[str, List[str]]) -> np.ndarray:
-        if isinstance(text, list):
-            text = " ".join(str(t) for t in text)
-        text = (text or "").lower()
-        hits = sum(1 for w in self.WEAPONS_WORDS if w in text)
-        # Saturate around 0.2–0.9
-        score = min(0.95, 0.2 + 0.7 * min(1.0, hits / 5))
-        return np.array([score])
+        # One score per input: accept list of strings and return (n,) array
+        if isinstance(text, str):
+            text = [text]
+        texts = [t if isinstance(t, str) else " ".join(str(x) for x in t) for t in text]
+        out = []
+        for t in texts:
+            t = (t or "").lower()
+            hits = sum(1 for w in self.WEAPONS_WORDS if w in t)
+            score = min(0.95, 0.2 + 0.7 * min(1.0, hits / 5))
+            out.append(score)
+        return np.array(out, dtype=np.float64)

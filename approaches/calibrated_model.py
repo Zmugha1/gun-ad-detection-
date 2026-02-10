@@ -41,21 +41,23 @@ class CalibratedWeaponsClassifier:
             scores = self.base.predict_proba(X_raw)
         except Exception:
             return self
-        if scores.ndim > 1:
+        n_inputs = len(X_raw)
+        if hasattr(scores, "ndim") and scores.ndim > 1:
             scores = scores.ravel()
         scores = np.asarray(scores, dtype=np.float64, copy=True).ravel()
+        if len(scores) != n_inputs:
+            return self
+        y_true = np.asarray(y_true).ravel()
+        if len(y_true) != n_inputs:
+            return self
         # Only keep finite scores in [0,1]; drop invalid rows
         valid = np.isfinite(scores) & (scores >= 0) & (scores <= 1)
-        y_true = np.asarray(y_true).ravel()
-        if len(y_true) != len(scores):
-            return self
-        scores = scores[valid]
-        y_true = y_true[valid]
+        scores = scores[valid].copy()
+        y_true = y_true[valid].copy()
         if len(scores) < 10 or len(np.unique(y_true)) < 2:
             return self
-        # Ensure binary 0/1 and contiguous for sklearn
-        y_true = (y_true != 0).astype(np.int32)
-        X = np.ascontiguousarray(scores.reshape(-1, 1).astype(np.float64))
+        y_true = (y_true != 0).astype(np.int32, copy=False)
+        X = np.ascontiguousarray(scores.reshape(-1, 1).astype(np.float64, copy=True))
         try:
             self.platt = LogisticRegression(C=1e10, solver="lbfgs", max_iter=1000)
             self.platt.fit(X, y_true)
