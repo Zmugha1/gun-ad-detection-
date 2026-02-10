@@ -34,18 +34,29 @@ class CalibratedWeaponsClassifier:
         """
         Fit Platt scaling: X_raw = list of texts, y_true = binary labels.
         Uses base model to get scores, then fits sigmoid( A * score + B ).
+        Falls back to no calibration (raw scores) if fit fails or only one class.
         """
+        self.platt = None
         scores = self.base.predict_proba(X_raw)
         if scores.ndim > 1:
             scores = scores.ravel()
-        scores = np.ascontiguousarray(np.asarray(scores, dtype=np.float64).reshape(-1, 1))
-        y_true = np.asarray(y_true, dtype=np.intp).ravel()
-        # sklearn LogisticRegression needs both classes present
-        if len(np.unique(y_true)) < 2:
-            self.platt = None
+        scores = np.asarray(scores, dtype=np.float64)
+        # Remove NaN/Inf so sklearn accepts
+        valid = np.isfinite(scores)
+        if not np.all(valid):
+            scores = np.where(valid, scores, 0.5)
+        scores = np.ascontiguousarray(scores.reshape(-1, 1))
+        y_true = np.asarray(y_true).ravel()
+        y_true = (y_true != 0).astype(np.intp)  # ensure binary 0/1
+        if len(y_true) != len(scores):
             return self
-        self.platt = LogisticRegression(C=1e10, solver="lbfgs", max_iter=1000)
-        self.platt.fit(scores, y_true)
+        if len(np.unique(y_true)) < 2:
+            return self
+        try:
+            self.platt = LogisticRegression(C=1e10, solver="lbfgs", max_iter=1000)
+            self.platt.fit(scores, y_true)
+        except (ValueError, TypeError):
+            self.platt = None
         return self
 
     def predict_proba(self, text: Union[str, List[str]]) -> np.ndarray:
