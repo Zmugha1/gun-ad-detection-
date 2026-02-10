@@ -50,3 +50,5 @@ Or double-click `run_app.bat` after creating the venv and installing requirement
 5. Click **Deploy**. Streamlit will install from `requirements.txt` and run `streamlit run app.py`.
 
 **Note:** The app uses a keyword-based fallback if `transformers`/`torch` are not installed or loading BERT fails (e.g. on free-tier memory). For full BERT inference, use a machine with enough RAM or a paid Streamlit plan.
+
+**If dependency install fails on Streamlit Cloud:** In the deploy form, open **Advanced settings** and try selecting **Python 3.11** or **3.12** (instead of 3.13), then redeploy.
