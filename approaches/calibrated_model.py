@@ -4,7 +4,6 @@ Same BERT base + Platt scaling (sigmoid) or temperature scaling. Threshold 0.7.
 """
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.calibration import CalibratedClassifierCV
 from typing import List, Optional, Union
 
 from .baseline_model import BaselineWeaponsClassifier
@@ -39,9 +38,14 @@ class CalibratedWeaponsClassifier:
         scores = self.base.predict_proba(X_raw)
         if scores.ndim > 1:
             scores = scores.ravel()
-        # Platt: fit LogisticRegression to (score -> label)
+        scores = np.ascontiguousarray(np.asarray(scores, dtype=np.float64).reshape(-1, 1))
+        y_true = np.asarray(y_true, dtype=np.intp).ravel()
+        # sklearn LogisticRegression needs both classes present
+        if len(np.unique(y_true)) < 2:
+            self.platt = None
+            return self
         self.platt = LogisticRegression(C=1e10, solver="lbfgs", max_iter=1000)
-        self.platt.fit(scores.reshape(-1, 1), y_true)
+        self.platt.fit(scores, y_true)
         return self
 
     def predict_proba(self, text: Union[str, List[str]]) -> np.ndarray:
@@ -51,7 +55,8 @@ class CalibratedWeaponsClassifier:
             raw = raw.ravel()
         if self.platt is None:
             return raw
-        return self.platt.predict_proba(np.array(raw).reshape(-1, 1))[:, 1]
+        X = np.ascontiguousarray(np.asarray(raw, dtype=np.float64).reshape(-1, 1))
+        return self.platt.predict_proba(X)[:, 1]
 
     def predict(self, text: Union[str, List[str]]) -> np.ndarray:
         proba = self.predict_proba(text)
