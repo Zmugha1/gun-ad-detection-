@@ -103,12 +103,15 @@ class _KeywordFallback:
     WEAPONS_WORDS = {"tactical", "sale", "serial", "cash", "firearm", "rifle", "ammo", "private", "no background", "magazine", "receiver", "concealed", "carry", "reloading"}
 
     def predict_proba(self, text: Union[str, List[str]]) -> np.ndarray:
-        # One score per input: accept list of strings and return (n,) array
+        # One score per input: accept str or list-like, return (n,) float64 array
         if isinstance(text, str):
             text = [text]
-        texts = [t if isinstance(t, str) else " ".join(str(x) for x in t) for t in text]
+        text = list(text)  # ensure list, not e.g. ndarray
+        n = len(text)
         out = []
-        for t in texts:
+        for i in range(n):
+            t = text[i]
+            t = str(t) if not isinstance(t, str) else t
             t = (t or "").lower()
             hits = sum(1 for w in self.WEAPONS_WORDS if w in t)
             score = min(0.95, 0.2 + 0.7 * min(1.0, hits / 5))

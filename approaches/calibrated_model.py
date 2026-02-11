@@ -54,6 +54,8 @@ class CalibratedWeaponsClassifier:
                 return self
             y_true = (y_true != 0).astype(np.int32, copy=False)
             X = np.ascontiguousarray(scores.reshape(-1, 1).astype(np.float64, copy=True))
+            if X.shape[0] != y_true.shape[0] or X.shape[0] < 10:
+                return self
             self.platt = LogisticRegression(C=1e10, solver="lbfgs", max_iter=1000)
             self.platt.fit(X, y_true)
         except Exception:
