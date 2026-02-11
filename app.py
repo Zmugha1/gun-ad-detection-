@@ -1,6 +1,6 @@
 """
 Weapons Detection Content Moderation — Streamlit app.
-Five tabs: Three Approaches, Live Detection Demo, Calibration Analysis,
+Tabs: How to, Three Approaches, Live Detection Demo, Calibration Analysis,
 Business Impact Simulator, Monitoring & Drift.
 """
 import sys
@@ -304,17 +304,96 @@ def tab_monitoring():
     else:
         st.write("FP rate (benign only): ", round(pred3[benign].sum() / max(benign.sum(), 1), 4))
 
+# ----- Tab: How to -----
+def tab_how_to():
+    st.header("How to use this app")
+    st.markdown(
+        "This app compares **three moderation approaches** for detecting prohibited weapons-related ads. "
+        "Use the tabs above to explore each section. No installation required—everything runs in your browser."
+    )
+    st.markdown("---")
+
+    st.subheader("Quick start")
+    st.markdown(
+        "- **New here?** Start with **The Three Approaches** to see how baseline, calibrated, and theory-constrained models differ.\n"
+        "- **Want to try it live?** Go to **Live Detection Demo**, paste ad copy, pick an audience, and click **Run detection**.\n"
+        "- **Care about costs?** Use **Business Impact Simulator** to adjust FN/FP costs and see estimated impact."
+    )
+    st.markdown("---")
+
+    st.subheader("What each tab does")
+
+    with st.expander("The Three Approaches", expanded=True):
+        st.markdown(
+            "**Purpose:** Side-by-side comparison of three ways to moderate content.\n\n"
+            "- **Approach 1 (Baseline):** Simple threshold at 0.5. No calibration.\n"
+            "- **Approach 2 (Calibrated):** Same model + Platt scaling; threshold 0.7. Better probability estimates.\n"
+            "- **Approach 3 (Theory-Constrained):** Isotonic calibration + 3-tier decisions (auto-ban / human review / allow) and **age-dependent thresholds** (stricter for content targeting minors).\n\n"
+            "You’ll see a **cost matrix** (cost of missing a violation vs. wrongfully blocking), **reliability diagrams** (calibration curves), and a **metrics table** (ECE, precision, recall, F1, Brier)."
+        )
+
+    with st.expander("Live Detection Demo"):
+        st.markdown(
+            "**Purpose:** Test moderation on your own ad text.\n\n"
+            "1. Paste ad copy (title, description, or keywords) into the text area.\n"
+            "2. Choose **Target audience**: General, Minors, or Adults.\n"
+            "3. Click **Run detection**.\n\n"
+            "You get **scores from all three approaches** and a **decision** (Allow / Human review / Auto-ban) for the theory-constrained model. "
+            "**Keywords that may trigger detection** are listed so you can see what the model is reacting to."
+        )
+
+    with st.expander("Calibration Analysis"):
+        st.markdown(
+            "**Purpose:** See how well predicted probabilities match reality.\n\n"
+            "**ECE** (Expected Calibration Error), **MCE** (Maximum Calibration Error), and **Brier score** are shown for each approach. "
+            "**Reliability diagrams** plot predicted probability vs. actual frequency (closer to the diagonal = better calibrated). "
+            "**Histograms** of predicted probabilities show whether the model is overconfident (scores clumped at 0 or 1) or appropriately uncertain."
+        )
+
+    with st.expander("Business Impact Simulator"):
+        st.markdown(
+            "**Purpose:** Estimate daily cost of different strategies.\n\n"
+            "Use the sliders to set:\n"
+            "- **Cost of False Negative** ($1K–$100K): cost per missed weapons ad.\n"
+            "- **Cost of False Positive** ($10–$500): cost per wrongful ban.\n"
+            "- **Ad volume** per day and **Human review cost** ($/hour).\n\n"
+            "The chart shows **estimated daily cost** for each approach. Approach 3 includes the cost of the human review queue."
+        )
+
+    with st.expander("Monitoring & Drift"):
+        st.markdown(
+            "**Purpose:** Simulate production monitoring and fairness.\n\n"
+            "**KL divergence over time** simulates 30 days of score distribution drift; an alert appears if drift exceeds the threshold (retraining warning). "
+            "**Demographic parity** shows false positive rates by age targeting so you can check that the theory-constrained approach doesn’t over-flag content unfairly."
+        )
+
+    st.markdown("---")
+    st.subheader("Decision rules (Theory-Constrained)")
+    st.markdown(
+        "| Score range | Action |\n"
+        "|-------------|--------|\n"
+        "| **≥ 0.90** | Auto-ban (high confidence violation) |\n"
+        "| **0.30–0.90** (minors) or **0.40–0.90** (general/adults) | Human review |\n"
+        "| **< 0.30** (minors) or **< 0.40** (general/adults) | Allow with monitoring |\n\n"
+        "Content targeting **minors** uses a lower threshold (0.30) so more items are sent to human review—stricter for child safety."
+    )
+    st.markdown("---")
+    st.caption("Built for high-stakes content moderation with theory-constrained calibration. See README in the repo for full methodology and references.")
+
 # ----- Main -----
 def main():
     st.title("Weapons Detection Content Moderation")
     st.caption("Theory-constrained calibration and cost-sensitive moderation for high-stakes trust & safety.")
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "How to",
         "The Three Approaches",
         "Live Detection Demo",
         "Calibration Analysis",
         "Business Impact Simulator",
         "Monitoring & Drift",
     ])
+    with tab0:
+        tab_how_to()
     with tab1:
         tab_three_approaches()
     with tab2:
